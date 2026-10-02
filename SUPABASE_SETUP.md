@@ -17,7 +17,7 @@ The database foundation is ready in `supabase/migrations/202610030001_zioguard_p
 
 1. Create or select the intended Supabase project.
 2. Apply the migration through the Supabase CLI or SQL editor.
-3. Copy `.env.example` to `.env.local` and fill in the project URL and anonymous key.
+3. Copy `.env.example` to `.env.local` and fill in the project URL and publishable key. The existing `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` names are supported.
 4. Configure allowed authentication URLs for the new Vercel domain.
 5. Seed one organization, facility, company administrator, worker, and responder membership.
 6. Connect the frontend to Supabase Auth and the three RPCs.

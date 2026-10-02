@@ -48,6 +48,7 @@ import {
   type IncidentStatus,
   type Role,
 } from "./model";
+import { checkSupabaseReadiness, type SupabaseReadiness } from "./supabase-readiness";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -667,8 +668,28 @@ function AnalyticsPage({ incidents }: { incidents: Incident[] }) {
 }
 
 function PilotSettings({ onReset }: { onReset: () => void }) {
+  const [supabaseReadiness, setSupabaseReadiness] = useState<SupabaseReadiness>("checking");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkSupabaseReadiness(controller.signal)
+      .then(setSupabaseReadiness)
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setSupabaseReadiness("unreachable");
+      });
+    return () => controller.abort();
+  }, []);
+
+  const databaseState: Record<SupabaseReadiness, { state: string; detail: string }> = {
+    checking: { state: "Checking", detail: "Validating the configured project and schema" },
+    unconfigured: { state: "Keys required", detail: "Add the public Supabase URL and publishable key" },
+    schema_missing: { state: "Schema required", detail: "Project connected; apply the included ZioGuard migration" },
+    ready: { state: "Schema reachable", detail: "Project and incident schema respond successfully" },
+    unreachable: { state: "Check connection", detail: "The configured project or incident endpoint did not respond" },
+  };
+
   const integrations = [
-    { name: "Shared incident database", state: "Required next", detail: "Supabase or equivalent with tenant isolation", icon: CloudCheck },
+    { name: "Shared incident database", state: databaseState[supabaseReadiness].state, detail: databaseState[supabaseReadiness].detail, icon: CloudCheck },
     { name: "SMS & voice notifications", state: "Not connected", detail: "Provider credentials and delivery receipts", icon: Phone },
     { name: "n8n orchestration", state: "Planned", detail: "Signed webhooks, retries and audit events", icon: PlugsConnected },
     { name: "Authority dispatch", state: "Agreement required", detail: "Never enabled without formal integration", icon: ShieldCheck },
