@@ -1,0 +1,19 @@
+{
+  "name": "ZioGuard Emergency Response",
+  "short_name": "ZioGuard",
+  "description": "Industrial emergency response, coordination and incident tracking.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f2f0e9",
+  "theme_color": "#171915",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

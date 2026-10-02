@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.pnpm-store/
+.vercel*/
+*.local
+*.log
+.DS_Store
+.env*
+!.env.example

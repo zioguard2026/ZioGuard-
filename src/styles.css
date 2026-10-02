@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Source Sans 3 Variable", sans-serif;
+  --font-display: "Archivo Variable", sans-serif;
+  --font-mono: "Archivo Variable", monospace;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    background: #171915;
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100dvh;
+    font-family: "Source Sans 3 Variable", sans-serif;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  select,
+  textarea,
+  input {
+    font: inherit;
+  }
+
+  button,
+  a,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  input:focus-visible {
+    outline: 3px solid #7d9500;
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply border border-[#c8c7bf] bg-[#fcfbf7] shadow-[3px_3px_0_#d6d4cc];
+  }
+
+  .eyebrow {
+    @apply font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#70756b];
+  }
+
+  .button-primary {
+    @apply flex min-h-12 items-center justify-center gap-2 border-2 border-[#171915] bg-[#e9ff4a] px-5 text-sm font-extrabold text-[#171915] shadow-[4px_4px_0_#171915] transition hover:-translate-y-0.5 hover:shadow-[6px_6px_0_#171915] active:translate-y-0 active:shadow-[2px_2px_0_#171915];
+  }
+
+  .button-secondary {
+    @apply flex min-h-12 items-center justify-center gap-2 border-2 border-[#171915] bg-[#faf9f4] px-5 text-sm font-extrabold text-[#171915] transition hover:bg-[#e7e6de] active:translate-y-0.5;
+  }
+
+  .button-danger {
+    @apply flex min-h-12 items-center justify-center gap-2 border-2 border-[#912714] bg-[#d74328] px-5 text-sm font-extrabold text-white shadow-[4px_4px_0_#912714] transition hover:-translate-y-0.5 hover:bg-[#c63a21] active:translate-y-0;
+  }
+
+  .field-label {
+    @apply block text-sm font-bold text-[#353931];
+  }
+
+  .field-input {
+    @apply mt-2 min-h-12 w-full border border-[#adafa7] bg-[#f9f8f3] px-3 py-3 text-base font-normal text-[#20231e] outline-none transition placeholder:text-[#92968c] hover:border-[#6f736a] focus:border-[#171915] focus:ring-0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  aside,
+  nav,
+  button,
+  header {
+    display: none !important;
+  }
+}
