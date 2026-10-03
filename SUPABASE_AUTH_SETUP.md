@@ -1,6 +1,6 @@
-# ZioGuard simple control-room authentication setup
+# ZioGuard simple three-persona authentication setup
 
-The pilot now uses email and password sign-in. Start with **three separate control-room users**, each with its own credentials and audit identity. Never share one login between operators. Keep `NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=false` until all three users have an active profile and membership.
+The pilot uses email and password sign-in. The first demonstration uses **three separate personas** so the complete response chain is visible: client reporter, company administrator, and police control-room operator. Never share one login between people. Keep `NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=false` until all three users have an active profile and membership.
 
 ## 1. Confirm the public browser variables
 
@@ -46,13 +46,13 @@ Run once in the SQL Editor, replacing the uppercase values:
 
 ```sql
 insert into public.organizations (name, slug)
-values ('DEMO DISTRICT CONTROL', 'demo-district-control')
+values ('ZIOGUARD PILOT ORGANIZATION', 'zioguard-pilot')
 on conflict (slug) do update set name = excluded.name;
 
 insert into public.facilities (organization_id, name, address_label, emergency_number)
-select id, 'PILOT CONTROL FACILITY', 'PILOT LOCATION', '112'
+select id, 'ZIOGUARD PILOT FACILITY', 'PILOT LOCATION', '112'
 from public.organizations
-where slug = 'demo-district-control'
+where slug = 'zioguard-pilot'
 on conflict (organization_id, name) do update
 set address_label = excluded.address_label,
     emergency_number = excluded.emergency_number;
@@ -64,9 +64,9 @@ This is a pilot data boundary, not evidence of integration with an official poli
 
 For this small demonstration, use **Authentication → Users → Add user → Create new user** if that option is available:
 
-1. Create `Control Operator 01` with a unique work email and generated password.
-2. Create `Control Operator 02` with a different email and password.
-3. Create `Control Supervisor 01` with a different email and password.
+1. Create `Pilot Administrator` for the company command and administration workspace.
+2. Create `Pilot Client` for the worker emergency-reporting experience.
+3. Create `Police Control Operator` for the control-room escalation experience.
 4. Mark each email confirmed only after the owner has verified the address.
 5. Copy each user's UUID.
 
@@ -76,13 +76,21 @@ Official reference: <https://supabase.com/docs/reference/javascript/auth-admin-c
 
 Use a password manager to generate and deliver credentials separately. Password reset remains administrator-managed during this demo phase.
 
-## 6. Activate and assign each control-room account
+## 6. Activate and assign each persona
 
-Run this block once per user. Replace the UUID, display name, and employee ID each time:
+Use the following role mapping:
+
+| Persona | Membership role | Application workspace |
+| --- | --- | --- |
+| Pilot Administrator | `company_admin` | Company command and pilot management |
+| Pilot Client | `worker` | Four-option emergency reporting and personal incidents |
+| Police Control Operator | `control_room` | Regional view and escalation queue |
+
+Run this block once per user. Replace every uppercase placeholder:
 
 ```sql
 update public.profiles
-set display_name = 'CONTROL OPERATOR 01',
+set display_name = 'DISPLAY NAME',
     account_status = 'active'
 where id = 'AUTH-USER-UUID';
 
@@ -102,19 +110,19 @@ insert into public.memberships (
 select
   organization.id,
   'AUTH-USER-UUID',
-  'control_room',
+  'MEMBERSHIP-ROLE'::public.membership_role,
   facility.id,
-  'CTRL-001',
-  'Pilot control room',
+  'EMPLOYEE-ID',
+  'PILOT DEPARTMENT',
   'Demo shift',
-  'Control-room operator',
+  'EMERGENCY ROLE',
   'current',
   now(),
   true
 from public.organizations organization
 join public.facilities facility on facility.organization_id = organization.id
-where organization.slug = 'demo-district-control'
-  and facility.name = 'PILOT CONTROL FACILITY'
+where organization.slug = 'zioguard-pilot'
+  and facility.name = 'ZIOGUARD PILOT FACILITY'
 on conflict (organization_id, user_id, role) do update
 set facility_id = excluded.facility_id,
     employee_id = excluded.employee_id,
@@ -122,7 +130,7 @@ set facility_id = excluded.facility_id,
     approved_at = now();
 ```
 
-Use `CTRL-001`, `CTRL-002`, and `CTRL-S01`. Do not create a generic shared police identity.
+For the current local workspace, an exact UUID-based script is available at `supabase/pilot-users.sql.local`. It is deliberately Git-ignored and contains no passwords. Run migration 003 first, then run that local script in the Supabase SQL Editor.
 
 ## 7. Verify before enforcing login
 
@@ -130,11 +138,13 @@ For each account:
 
 1. Keep `NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=false` and confirm the investor demo still loads.
 2. Change it to `true`, restart the app, and sign in.
-3. Confirm the user lands only in **Control room**.
-4. Confirm Regional view, Escalation queue, Resources, mobile navigation, and Sign out are reachable.
-5. Confirm a wrong password shows a generic error.
-6. Confirm a user without an active membership stops at **Assignment required**.
-7. Sign out before testing the next account.
+3. Confirm the client opens only the worker emergency experience.
+4. Confirm the administrator opens only Company command and pilot management.
+5. Confirm the police account opens only Regional view, Escalation queue, and Resources.
+6. Confirm mobile navigation and Sign out are reachable in every workspace.
+7. Confirm a wrong password shows a generic error.
+8. Confirm a user without an active membership stops at **Assignment required**.
+9. Sign out before testing the next account.
 
 After all three pass, keep this enabled locally and in the final Vercel project:
 
@@ -149,14 +159,15 @@ NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=true
 - [ ] Anonymous sign-in disabled
 - [ ] Strong password policy configured
 - [ ] Three different emails and passwords used
-- [ ] Three active `control_room` memberships created
-- [ ] Each user opens only the control-room workspace
+- [ ] Active `company_admin`, `worker`, and `control_room` memberships created
+- [ ] Each user opens only the workspace assigned above
 - [ ] No authenticated user can switch role in the interface
 - [ ] Sign-out works on desktop and mobile
 - [ ] Unknown, inactive, and membership-less users cannot enter
 - [ ] Cross-organization incident reads return no rows
 - [ ] Worker accounts can read only incidents they created
 - [ ] Service-role/secret keys are absent from browser environment and Git
+- [ ] Initially shared demo passwords rotated before the app is demonstrated or recorded
 - [ ] The pilot is labelled as not connected to public dispatch
 
 ## 9. Required before a live operational pilot

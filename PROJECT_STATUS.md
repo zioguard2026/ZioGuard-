@@ -144,19 +144,23 @@ No credentials or key values were printed or committed during verification.
 - [x] Phone provider disabled.
 - [ ] Project-wide open sign-up is still enabled (`disable_signup=false`). The application itself prevents unknown-email creation, but the dashboard setting should also be disabled for defense in depth before pilot use.
 
-## Simple three-account control-room setup
+## Simple three-persona authentication setup
 
 - [x] Application login changed to email and password.
 - [x] Individual account and sign-out navigation added.
 - [ ] Apply `202610030003_pilot_security_hardening.sql`.
 - [ ] Disable project-wide new-user signup; it was observed enabled on 2026-10-03.
-- [ ] Remove any service-role/secret key from the frontend `.env.local`.
+- [x] No service-role/secret variable is present in the frontend `.env.local`.
 - [ ] Configure the strong password policy.
-- [ ] Create three separately named Auth users.
-- [ ] Mark all three profiles active.
-- [ ] Create three active `control_room` memberships.
+- [x] Three separately named Auth users created in Supabase on 2026-10-03.
+- [x] Local Auth enforcement remains disabled until memberships are assigned.
+- [x] Private Git-ignored provisioning script prepared with the three Auth UUIDs and no passwords.
+- [ ] Apply the provisioning script and verify its three-row result.
+- [ ] Mark all three profiles active through the provisioning script.
+- [ ] Create one `company_admin`, one `worker`, and one `control_room` membership.
 - [ ] Test each login and sign-out while Auth remains optional.
 - [ ] Set `NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=true` locally and in Vercel.
+- [ ] Rotate the initially shared demo passwords before demonstration or recording.
 
 Follow `SUPABASE_AUTH_SETUP.md` in order. Do not enable Auth enforcement before the first working membership exists.
 
@@ -248,7 +252,7 @@ The application role lock is a navigation safeguard; RLS and audited RPCs are th
 - Vite production build: passed.
 - Production dependency advisory audit: no known vulnerabilities reported.
 - Tracked-file secret-pattern scan: no Supabase secret/service-role/JWT pattern found outside package integrity data.
-- `.env.local`: confirmed ignored by Git; local service credentials still need removal from the frontend workspace.
+- `.env.local`: confirmed ignored by Git and contains only the three expected public browser configuration names.
 - Security migration 003: prepared and reviewed locally, but not yet applied or remotely verified.
 - Supabase public schema checks: passed.
 - Supabase Auth health: passed.
