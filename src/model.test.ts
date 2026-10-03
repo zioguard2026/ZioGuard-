@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceIncident, createIncident, escalateIncident, formatElapsed } from "./model";
+import { advanceIncident, cancelIncident, createIncident, escalateIncident, formatElapsed, isActive } from "./model";
 
 describe("incident lifecycle", () => {
   it("creates a trackable incident with a first timeline entry", () => {
@@ -25,5 +25,13 @@ describe("incident lifecycle", () => {
 
   it("formats elapsed time for the response UI", () => {
     expect(formatElapsed("2026-10-03T10:00:00.000Z", new Date("2026-10-03T10:07:12.000Z"))).toBe("7m");
+  });
+
+  it("closes a false alert without deleting its audit trail", () => {
+    const incident = createIncident("security", "", "North gate", "Facility location");
+    const cancelled = cancelIncident(incident, "Demo Worker 01");
+    expect(cancelled.status).toBe("cancelled");
+    expect(cancelled.timeline.at(-1)?.label).toBe("False alert reported");
+    expect(isActive(cancelled)).toBe(false);
   });
 });

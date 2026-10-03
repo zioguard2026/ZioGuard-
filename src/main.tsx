@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource-variable/archivo";
 import "@fontsource-variable/source-sans-3";
 import App from "./App";
+import { AuthGate, AuthProvider } from "./auth";
 import "./styles.css";
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
@@ -11,6 +12,10 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <AuthProvider>
+      <AuthGate>
+        <App />
+      </AuthGate>
+    </AuthProvider>
   </StrictMode>,
 );

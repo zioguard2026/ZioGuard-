@@ -5,7 +5,15 @@ export type IncidentStatus =
   | "acknowledged"
   | "dispatched"
   | "on_scene"
-  | "resolved";
+  | "resolved"
+  | "cancelled";
+
+export interface ReporterSnapshot {
+  displayName: string;
+  employeeId: string;
+  organization: string;
+  facility: string;
+}
 
 export interface TimelineEntry {
   id: string;
@@ -14,6 +22,14 @@ export interface TimelineEntry {
   detail: string;
   at: string;
   actor: string;
+}
+
+export interface IncidentAttachment {
+  id: string;
+  name: string;
+  kind: "photo" | "audio";
+  dataUrl: string;
+  createdAt: string;
 }
 
 export interface Incident {
@@ -31,10 +47,16 @@ export interface Incident {
   headcount: number | null;
   escalated: boolean;
   severity: "critical" | "high" | "medium";
+  notifiedTeams?: string[];
+  assignedTeam?: string;
+  voiceNote?: string;
+  attachments?: IncidentAttachment[];
+  isDrill?: boolean;
+  reviewStatus?: "pending" | "complete";
   timeline: TimelineEntry[];
 }
 
-export const statusOrder: IncidentStatus[] = [
+export const statusOrder: Exclude<IncidentStatus, "cancelled">[] = [
   "triggered",
   "acknowledged",
   "dispatched",
@@ -48,6 +70,7 @@ export const statusLabels: Record<IncidentStatus, string> = {
   dispatched: "Team dispatched",
   on_scene: "Team on scene",
   resolved: "Resolved",
+  cancelled: "False alert closed",
 };
 
 export const categoryLabels: Record<Category, string> = {
@@ -173,6 +196,8 @@ export const seedIncidents: Incident[] = [
     headcount: 0,
     escalated: false,
     severity: "medium",
+    isDrill: true,
+    reviewStatus: "complete",
     timeline: [
       {
         id: "t-9",
@@ -233,6 +258,14 @@ export function createIncident(
   description: string,
   zone: string,
   location: string,
+  reporter: ReporterSnapshot = {
+    displayName: "Demo Worker 01",
+    employeeId: "W-1042",
+    organization: "ZioGuard Demo Industries",
+    facility: "Pilot Plant Alpha",
+  },
+  voiceNote?: string,
+  isDrill = false,
 ): Incident {
   const now = new Date();
   const suffix = Math.floor(100000 + Math.random() * 900000);
@@ -241,10 +274,10 @@ export function createIncident(
     id,
     category,
     status: "triggered",
-    worker: "Demo Worker 01",
-    workerId: "W-1042",
-    organization: "ZioGuard Demo Industries",
-    facility: "Pilot Plant Alpha",
+    worker: reporter.displayName,
+    workerId: reporter.employeeId,
+    organization: reporter.organization,
+    facility: reporter.facility,
     zone,
     location,
     createdAt: now.toISOString(),
@@ -252,6 +285,10 @@ export function createIncident(
     headcount: null,
     escalated: false,
     severity: category === "fire" || category === "hazmat" ? "critical" : "high",
+    notifiedTeams: ["Site safety desk", "On-duty response team", "Shift supervisor"],
+    voiceNote,
+    isDrill,
+    reviewStatus: "pending",
     timeline: [
       {
         id: crypto.randomUUID(),
@@ -259,13 +296,38 @@ export function createIncident(
         label: `${categoryLabels[category]} alert triggered`,
         detail: "Pilot alert created from worker device. On-site response team notified in this demo.",
         at: now.toISOString(),
-        actor: "Demo Worker 01",
+        actor: reporter.displayName,
+      },
+    ],
+  };
+}
+
+export function addIncidentUpdate(
+  incident: Incident,
+  actor: string,
+  detail: string,
+  attachment?: IncidentAttachment,
+): Incident {
+  const now = new Date().toISOString();
+  return {
+    ...incident,
+    attachments: attachment ? [...(incident.attachments ?? []), attachment] : incident.attachments,
+    timeline: [
+      ...incident.timeline,
+      {
+        id: crypto.randomUUID(),
+        status: "note",
+        label: attachment ? `${attachment.kind === "photo" ? "Photo" : "Voice"} update added` : "Worker update added",
+        detail: detail.trim() || `${attachment?.name ?? "Attachment"} added to the incident.`,
+        at: now,
+        actor,
       },
     ],
   };
 }
 
 export function advanceIncident(incident: Incident, actor: string): Incident {
+  if (incident.status === "cancelled") return incident;
   const currentIndex = statusOrder.indexOf(incident.status);
   if (currentIndex < 0 || currentIndex === statusOrder.length - 1) return incident;
   const nextStatus = statusOrder[currentIndex + 1];
@@ -275,6 +337,7 @@ export function advanceIncident(incident: Incident, actor: string): Incident {
     dispatched: "Site response resources have been sent.",
     on_scene: "Assigned response team has reached the incident zone.",
     resolved: "Incident closed after response lead review.",
+    cancelled: "Incident closed as a false or accidental alert.",
   };
   return {
     ...incident,
@@ -287,6 +350,26 @@ export function advanceIncident(incident: Incident, actor: string): Incident {
         label: statusLabels[nextStatus],
         detail: details[nextStatus],
         at: new Date().toISOString(),
+        actor,
+      },
+    ],
+  };
+}
+
+export function cancelIncident(incident: Incident, actor: string): Incident {
+  if (incident.status === "resolved" || incident.status === "cancelled") return incident;
+  const now = new Date().toISOString();
+  return {
+    ...incident,
+    status: "cancelled",
+    timeline: [
+      ...incident.timeline,
+      {
+        id: crypto.randomUUID(),
+        status: "cancelled",
+        label: "False alert reported",
+        detail: "The reporting worker marked this incident as an accidental or false alert. The event remains in the audit record.",
+        at: now,
         actor,
       },
     ],
@@ -324,5 +407,5 @@ export function formatElapsed(from: string, to = new Date()): string {
 }
 
 export function isActive(incident: Incident): boolean {
-  return incident.status !== "resolved";
+  return incident.status !== "resolved" && incident.status !== "cancelled";
 }

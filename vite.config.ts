@@ -7,5 +7,12 @@ export default defineConfig({
   envPrefix: ["VITE_", "NEXT_PUBLIC_"],
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("@supabase")) return "supabase";
+        },
+      },
+    },
   },
 });

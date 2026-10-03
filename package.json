@@ -14,6 +14,7 @@
     "@fontsource-variable/archivo": "latest",
     "@fontsource-variable/source-sans-3": "latest",
     "@phosphor-icons/react": "latest",
+    "@supabase/supabase-js": "^2.117.2",
     "react": "latest",
     "react-dom": "latest"
   },
