@@ -27,17 +27,18 @@ The pilot should be positioned as **industrial incident coordination**, not as a
 
 ## What this build includes
 
-- Worker emergency console with four direct actions: fire/smoke, chemical/gas, security threat, and medical emergency.
+- Worker emergency console with four direct actions: FIRE, HAZMAT, SECURITY, and AMBULANCE.
 - Tapping a category opens a mobile confirmation sheet immediately; there is no separate red alert button.
 - Confirmation includes the worker identity, company, facility, zone, GPS/facility location layer, notification audience, optional text, and a working 20-second voice-note recorder.
-- Post-alert worker tracker with delivery state, acknowledgement, assigned team, dispatch progress, safety guidance, 112 shortcut, and audited false-alert closure.
+- Immediate post-confirmation return to the four emergency choices, with a compact incident receipt and status access through My incidents.
+- Worker incident details with delivery state, acknowledgement, assigned team, dispatch progress, safety guidance, 112 shortcut, and audited false-alert closure.
 - Editable pilot worker profile with employee, organization, facility, department, shift, language, work-zone, training, account, and PWA/push readiness context.
 - Worker safety card and personal incident history use the current profile rather than fixed screen copy.
 - Company command dashboard with active incidents, readiness, facility schematic, full incident register, teams, and response analytics.
 - Interactive operations workspace for people, teams, facilities, zones, response plans, notification readiness, and drills.
 - Dedicated investor Demo Controller with scenario launch, drill mode, reset, guided story, and evidence-focused analytics.
 - Incident command drawer with lifecycle actions and an immutable-style timeline.
-- Separate control-room view with a regional queue and explicit dispatch boundary.
+- Control-room workspace with a regional queue, all-company activity, simulated unit assignment, voice/SMS audit preview, searchable history, response-time context, and CSV export.
 - Installable PWA manifest, offline application shell, mobile navigation, and responsive layouts.
 - Persistent demo data in the browser so the pilot can be demonstrated without a backend.
 - A Supabase migration foundation with tenant-aware roles, row-level security, guarded lifecycle functions, append-only events, and realtime publication.
@@ -53,7 +54,8 @@ This preview is an interactive product pilot, not a live safety system.
 - No SMS, WhatsApp, voice call, n8n flow, public authority, or responder is contacted.
 - Role switching is available only while Auth is disabled for unrestricted demonstration. With Auth enabled, the active Supabase membership locks the workspace.
 - Incidents remain browser-local, so the three-persona walkthrough must use the same browser profile until shared Supabase incidents and Realtime are connected.
-- A newly raised alert automatically advances through demo acknowledgement and dispatch so an investor can see the worker-side realtime experience. This behavior must be replaced by authenticated responder updates before a live pilot.
+- A newly raised alert returns the worker to the emergency home immediately, then automatically advances through demo acknowledgement and dispatch in the background. Status is visible in My incidents. This behavior must be replaced by authenticated responder updates before a live pilot.
+- AI voice-call and Twilio/SMS activity is visibly simulated; no external call or message is made.
 - The schematic map and resource counts are sample data.
 - Offline mode keeps the interface available but cannot deliver an alert to another device.
 
@@ -101,7 +103,7 @@ pnpm lint
 pnpm build
 ```
 
-The current build has six lifecycle and approved-label unit tests and is configured for a Vercel static deployment.
+The current build has seven lifecycle, approved-label, and dispatch unit tests and is configured for a Vercel static deployment.
 
 See `SUPABASE_SETUP.md` for the safe database connection sequence. Apply all three migrations in timestamp order; the remote schema is intentionally not changed automatically from the browser application.
 

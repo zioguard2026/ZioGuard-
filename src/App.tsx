@@ -2,7 +2,6 @@ import {
   Alarm,
   ArrowRight,
   Buildings,
-  Camera,
   ChartLineUp,
   CheckCircle,
   ClipboardText,
@@ -21,7 +20,6 @@ import {
   Megaphone,
   Microphone,
   NavigationArrow,
-  NotePencil,
   Phone,
   PlugsConnected,
   Radio,
@@ -37,13 +35,14 @@ import {
   WifiSlash,
   X,
 } from "@phosphor-icons/react";
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   advanceIncident,
   addIncidentUpdate,
   cancelIncident,
   categoryLabels,
   createIncident,
+  dispatchIncident,
   escalateIncident,
   formatElapsed,
   isActive,
@@ -84,7 +83,9 @@ type Page =
   | "settings"
   | "demo"
   | "regional"
+  | "companies"
   | "queue"
+  | "history"
   | "resources";
 
 const roleMeta: Record<Role, { label: string; short: string; page: Page }> = {
@@ -110,7 +111,9 @@ const navigation: Record<Role, { id: Page; label: string; icon: typeof HouseLine
   ],
   control: [
     { id: "regional", label: "Regional view", icon: Crosshair },
-    { id: "queue", label: "Escalation queue", icon: Radio },
+    { id: "companies", label: "All companies", icon: Buildings },
+    { id: "queue", label: "Dispatch desk", icon: Radio },
+    { id: "history", label: "History & CSV", icon: ClipboardText },
     { id: "resources", label: "Resources", icon: Buildings },
   ],
 };
@@ -214,7 +217,7 @@ export default function App() {
   const [incidents, setIncidents] = usePersistentIncidents();
   const [profile, setProfile] = usePersistentProfile();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeWorkerIncidentId, setActiveWorkerIncidentId] = useState<string | null>(null);
+  const [recentWorkerIncidentId, setRecentWorkerIncidentId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [drillMode, setDrillMode] = useState(false);
@@ -267,8 +270,8 @@ export default function App() {
       facility: effectiveProfile.facility,
     }, voiceNote, drillMode);
     setIncidents((current) => [created, ...current]);
-    setActiveWorkerIncidentId(created.id);
-    setToast(`${created.id} created — pilot response team notified`);
+    setRecentWorkerIncidentId(created.id);
+    setToast(`${created.id} sent — you can report another emergency immediately`);
     demoTimers.current.push(window.setTimeout(() => {
       setIncidents((current) => current.map((incident) => {
         if (incident.id !== created.id || incident.status !== "triggered") return incident;
@@ -303,6 +306,11 @@ export default function App() {
     setToast("Added to pilot control-room queue");
   };
 
+  const handleDispatch = (id: string, responseUnit: string) => {
+    setIncidents((current) => current.map((incident) => incident.id === id ? dispatchIncident(incident, "Police Control Operator", responseUnit) : incident));
+    setToast(`${responseUnit} assigned and dispatched`);
+  };
+
   const handleInstall = async () => {
     if (!installPrompt) {
       setToast("Use your browser menu and choose ‘Install app’ or ‘Add to Home screen’");
@@ -313,7 +321,15 @@ export default function App() {
     setInstallPrompt(null);
   };
 
-  const selectedIncident = incidents.find((item) => item.id === selectedId) ?? null;
+  const visibleIncidents = auth.required && auth.identity
+    ? activeRole === "worker"
+      ? incidents.filter((item) => item.workerId === effectiveProfile.employeeId)
+      : activeRole === "company"
+        ? incidents.filter((item) => item.organization === auth.identity?.organization)
+        : incidents
+    : incidents;
+  const selectedIncident = visibleIncidents.find((item) => item.id === selectedId) ?? null;
+  const recentWorkerIncident = incidents.find((item) => item.id === recentWorkerIncidentId) ?? null;
 
   return (
     <div className="min-h-dvh bg-[#eeece4] text-[#171915] selection:bg-[#e9ff4a] selection:text-[#171915]">
@@ -328,18 +344,20 @@ export default function App() {
         <div className="min-w-0 flex-1 pb-24 lg:pb-0">
           <MobileHeader role={activeRole} online={online} roleLocked={auth.required} accountName={auth.identity?.displayName} onRoleChange={handleRoleChange} onSignOut={auth.signOut} />
           <main id="main-content" className="mx-auto w-full max-w-[1480px] p-4 sm:p-6 lg:p-8 xl:p-10">
-            {activeRole === "worker" && activePage === "trigger" && <TriggerPage onCreate={handleCreateIncident} onCancelIncident={handleCancelIncident} onIncidentUpdate={handleIncidentUpdate} activeIncident={incidents.find((item) => item.id === activeWorkerIncidentId) ?? null} onClearActive={() => setActiveWorkerIncidentId(null)} online={online} profile={effectiveProfile} drillMode={drillMode} />}
-            {activeRole === "worker" && activePage === "my_incidents" && <MyIncidents incidents={incidents} workerId={effectiveProfile.employeeId} onSelect={setSelectedId} />}
+            {activeRole === "worker" && activePage === "trigger" && <TriggerPage onCreate={handleCreateIncident} recentIncident={recentWorkerIncident} onDismissRecent={() => setRecentWorkerIncidentId(null)} onViewIncidents={() => setPage("my_incidents")} online={online} profile={effectiveProfile} drillMode={drillMode} />}
+            {activeRole === "worker" && activePage === "my_incidents" && <MyIncidents incidents={visibleIncidents} workerId={effectiveProfile.employeeId} onSelect={setSelectedId} />}
             {activeRole === "worker" && activePage === "safety" && <SafetyCard profile={effectiveProfile} />}
             {activeRole === "worker" && activePage === "profile" && <WorkerProfilePage profile={effectiveProfile} authenticated={Boolean(auth.user)} onSave={setProfile} onSignOut={auth.signOut} />}
-            {activeRole === "company" && activePage === "overview" && <CompanyOverview incidents={incidents} onSelect={setSelectedId} />}
-            {activeRole === "company" && activePage === "incidents" && <IncidentRegister incidents={incidents} onSelect={setSelectedId} />}
+            {activeRole === "company" && activePage === "overview" && <CompanyOverview incidents={visibleIncidents} onSelect={setSelectedId} />}
+            {activeRole === "company" && activePage === "incidents" && <IncidentRegister incidents={visibleIncidents} onSelect={setSelectedId} />}
             {activeRole === "company" && activePage === "teams" && <TeamsPage onToast={setToast} />}
-            {activeRole === "company" && activePage === "analytics" && <AnalyticsPage incidents={incidents} />}
+            {activeRole === "company" && activePage === "analytics" && <AnalyticsPage incidents={visibleIncidents} />}
             {activeRole === "company" && activePage === "settings" && <PilotSettings onReset={() => { setIncidents(seedIncidents); setToast("Pilot data restored"); }} />}
-            {activeRole === "company" && activePage === "demo" && <DemoController incidents={incidents} drillMode={drillMode} onDrillModeChange={setDrillMode} onStart={(category) => { const created = handleCreateIncident(category, "Investor demonstration scenario", effectiveProfile.defaultZone, `${effectiveProfile.facility} registered location`); setSelectedId(created.id); }} onReset={() => { setIncidents(seedIncidents); setSelectedId(null); setActiveWorkerIncidentId(null); setToast("Investor demo reset to its opening state"); }} onOpenIncident={setSelectedId} />}
+            {activeRole === "company" && activePage === "demo" && <DemoController incidents={visibleIncidents} drillMode={drillMode} onDrillModeChange={setDrillMode} onStart={(category) => { const created = handleCreateIncident(category, "Investor demonstration scenario", effectiveProfile.defaultZone, `${effectiveProfile.facility} registered location`); setSelectedId(created.id); }} onReset={() => { setIncidents(seedIncidents); setSelectedId(null); setRecentWorkerIncidentId(null); setToast("Investor demo reset to its opening state"); }} onOpenIncident={setSelectedId} />}
             {activeRole === "control" && activePage === "regional" && <RegionalView incidents={incidents} onSelect={setSelectedId} />}
-            {activeRole === "control" && activePage === "queue" && <EscalationQueue incidents={incidents} onSelect={setSelectedId} />}
+            {activeRole === "control" && activePage === "companies" && <ControlCompaniesPage incidents={incidents} onSelect={setSelectedId} />}
+            {activeRole === "control" && activePage === "queue" && <ControlDispatchDesk incidents={incidents} onSelect={setSelectedId} onDispatch={handleDispatch} />}
+            {activeRole === "control" && activePage === "history" && <ControlHistoryPage incidents={incidents} onSelect={setSelectedId} />}
             {activeRole === "control" && activePage === "resources" && <ResourcesPage />}
           </main>
         </div>
@@ -353,6 +371,7 @@ export default function App() {
           onAdvance={() => handleAdvance(selectedIncident.id)}
           onEscalate={() => handleEscalate(selectedIncident.id)}
           onNote={(detail) => handleIncidentUpdate(selectedIncident.id, detail)}
+          onCancel={() => handleCancelIncident(selectedIncident.id)}
         />
       )}
       <div aria-live="polite" className="pointer-events-none fixed inset-x-4 bottom-24 z-[70] flex justify-center lg:bottom-6">
@@ -465,12 +484,11 @@ type CapturedLocation = {
   accuracy?: number;
 };
 
-function TriggerPage({ onCreate, onCancelIncident, onIncidentUpdate, activeIncident, onClearActive, online, profile, drillMode }: {
+function TriggerPage({ onCreate, recentIncident, onDismissRecent, onViewIncidents, online, profile, drillMode }: {
   onCreate: (category: Category, detail: string, zone: string, location: string, voiceNote?: string) => Incident;
-  onCancelIncident: (id: string) => void;
-  onIncidentUpdate: (id: string, detail: string, attachment?: IncidentAttachment) => void;
-  activeIncident: Incident | null;
-  onClearActive: () => void;
+  recentIncident: Incident | null;
+  onDismissRecent: () => void;
+  onViewIncidents: () => void;
   online: boolean;
   profile: WorkerProfile;
   drillMode: boolean;
@@ -524,10 +542,6 @@ function TriggerPage({ onCreate, onCancelIncident, onIncidentUpdate, activeIncid
     navigator.vibrate?.([120, 80, 180]);
   };
 
-  if (activeIncident) {
-    return <WorkerIncidentTracker incident={activeIncident} facilityEmergencyNumber={profile.facilityEmergencyNumber} onUpdate={(detail, attachment) => onIncidentUpdate(activeIncident.id, detail, attachment)} onCancel={() => onCancelIncident(activeIncident.id)} onReportAnother={onClearActive} />;
-  }
-
   return (
     <div>
       <PageHeading
@@ -536,6 +550,7 @@ function TriggerPage({ onCreate, onCancelIncident, onIncidentUpdate, activeIncid
         description="Tap the emergency type. Confirm the location in the next step—nothing is sent from this screen."
         action={<a href="tel:112" className="button-secondary shrink-0"><Phone weight="fill" /> Call 112</a>}
       />
+      {recentIncident && <section className="mb-5 border-2 border-[#527000] bg-[#e8edda] p-4 sm:p-5" role="status"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><CheckCircle size={24} weight="fill" className="mt-0.5 shrink-0 text-[#567400]" /><div><strong className="font-display text-lg">Alert sent successfully</strong><p className="mt-1 text-sm leading-5 text-[#4d5940]">{recentIncident.id} was created. You can raise another emergency now; status remains available in My incidents.</p></div></div><div className="flex shrink-0 flex-wrap gap-2"><button onClick={onViewIncidents} className="button-secondary min-h-11 px-4">View My incidents</button><button onClick={onDismissRecent} className="min-h-11 px-3 text-xs font-bold underline">Dismiss</button></div></div></section>}
       {drillMode && <div className="mb-5 flex items-center justify-between gap-4 border-2 border-[#171915] bg-[#e9ff4a] p-4"><div><div className="font-mono text-[10px] font-black uppercase tracking-[0.2em]">Drill mode active</div><strong className="mt-1 block">Alerts created now are training records—not live emergencies.</strong></div><ShieldCheck size={27} weight="fill" /></div>}
       {!online && (
         <div className="mb-5 flex items-start gap-3 border-2 border-[#9f6f00] bg-[#fff0bd] p-4 text-sm text-[#594000]">
@@ -744,95 +759,6 @@ function ConfirmAlertDialog({ category, drillMode, profile, zone, location, loca
           </div>
         </div>
       </section>
-    </div>
-  );
-}
-
-function WorkerIncidentTracker({ incident, facilityEmergencyNumber, onUpdate, onCancel, onReportAnother }: { incident: Incident; facilityEmergencyNumber: string; onUpdate: (detail: string, attachment?: IncidentAttachment) => void; onCancel: () => void; onReportAnother: () => void }) {
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [updateOpen, setUpdateOpen] = useState(false);
-  const [updateText, setUpdateText] = useState("");
-  const [attachment, setAttachment] = useState<IncidentAttachment | undefined>();
-  const [clock, setClock] = useState(() => new Date());
-  const meta = categoryStyles[incident.category];
-  const Icon = meta.icon;
-  const acknowledgement = incident.timeline.find((entry) => entry.status === "acknowledged");
-  const steps = statusOrder;
-  const currentIndex = incident.status === "cancelled" ? -1 : steps.indexOf(incident.status);
-  const closed = incident.status === "resolved" || incident.status === "cancelled";
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setClock(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const handleAttachment = (event: ChangeEvent<HTMLInputElement>, kind: "photo" | "audio") => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result !== "string") return;
-      setAttachment({ id: crypto.randomUUID(), name: file.name, kind, dataUrl: reader.result, createdAt: new Date().toISOString() });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSubmitUpdate = () => {
-    if (!updateText.trim() && !attachment) return;
-    onUpdate(updateText, attachment);
-    setUpdateText("");
-    setAttachment(undefined);
-    setUpdateOpen(false);
-  };
-
-  return (
-    <div className="mx-auto max-w-4xl">
-      <div className="flex flex-col justify-between gap-4 border-2 border-[#171915] bg-[#171915] p-5 text-white shadow-[8px_8px_0_#bfc0b8] sm:flex-row sm:items-center sm:p-7">
-        <div className="flex items-center gap-4"><div className={cn("grid h-14 w-14 place-items-center", meta.soft)}><Icon size={30} weight="fill" /></div><div><div className="font-mono text-[9px] uppercase tracking-[0.17em] text-[#adb1a5]">Live worker response</div><h1 className="mt-1 font-display text-2xl font-black sm:text-3xl">{categoryLabels[incident.category]}</h1></div></div>
-        <div className="flex items-center gap-2">{incident.isDrill && <span className="bg-[#e9ff4a] px-2 py-1 font-mono text-[9px] font-black uppercase tracking-[0.14em] text-[#171915]">Drill</span>}<StatusBadge status={incident.status} /></div>
-      </div>
-
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
-        <section className="panel p-5 sm:p-7">
-          <div className="flex items-start gap-4 border-l-4 border-[#7d9e00] bg-[#e8edda] p-4 text-[#354400]"><CheckCircle size={25} weight="fill" className="mt-0.5 shrink-0" /><div><div className="font-display text-lg font-black">Alert delivered</div><p className="mt-1 text-sm leading-5">Incident <strong>{incident.id}</strong> is visible to the site command team.</p></div></div>
-
-          <div className="mt-7">
-            <div className="eyebrow">Current response</div>
-            <div className="mt-3 flex items-start gap-4">
-              {!closed && incident.status === "triggered" ? <span className="mt-1 h-3 w-3 shrink-0 animate-pulse rounded-full bg-[#c38b00]" /> : <CheckCircle className="mt-0.5 shrink-0 text-[#6e9300]" size={22} weight="fill" />}
-              <div>
-                <h2 className="font-display text-2xl font-black tracking-[-0.04em]">{incident.status === "triggered" ? "Waiting for acknowledgement" : incident.status === "cancelled" ? "False alert closed" : statusLabels[incident.status]}</h2>
-                <p className="mt-2 text-sm leading-6 text-[#62675d]">{acknowledgement ? `${acknowledgement.actor} acknowledged this alert. ${incident.assignedTeam ?? "A response team is being coordinated."}` : "The site safety desk and on-duty response team have been notified. Keep yourself safe while they respond."}</p>
-                {!acknowledgement && !closed && <div className="mt-3 font-mono text-xs font-bold uppercase tracking-[0.12em] text-[#8a6200]">Waiting {formatElapsed(incident.createdAt, clock)}</div>}
-              </div>
-            </div>
-          </div>
-
-          <ol className="mt-8 grid grid-cols-5 gap-1" aria-label="Incident progress">
-            {steps.map((step, index) => <li key={step} className="min-w-0"><div className={cn("h-2", index <= currentIndex ? "bg-[#7d9e00]" : "bg-[#d7d7d0]")} /><div className="mt-2 hidden truncate font-mono text-[8px] font-bold uppercase text-[#6f746a] sm:block">{statusLabels[step]}</div></li>)}
-          </ol>
-
-          <div className="mt-8 border-l-4 border-[#e9ff4a] bg-[#20231e] p-5 text-white"><div className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#adb1a5]">Do this now</div><p className="mt-2 font-semibold leading-6">{meta.instructions}</p></div>
-
-          <dl className="mt-7 grid gap-5 border-t border-[#d1d0c8] pt-6 sm:grid-cols-2"><Detail label="Facility and zone" value={`${incident.facility} · ${incident.zone}`} /><Detail label="Available location" value={incident.location} /><Detail label="Reported by" value={`${incident.worker} · ${incident.workerId}`} /><Detail label="Response team" value={incident.assignedTeam ?? "Awaiting assignment"} /></dl>
-          {incident.voiceNote && <div className="mt-6"><div className="eyebrow">Voice note</div><audio className="mt-3 w-full" controls src={incident.voiceNote}>Voice note</audio></div>}
-          {(incident.attachments?.length ?? 0) > 0 && <div className="mt-6"><div className="eyebrow">Worker attachments</div><div className="mt-3 grid gap-3 sm:grid-cols-2">{incident.attachments?.map((item) => <div key={item.id} className="border border-[#c9c8c0] bg-white p-3">{item.kind === "photo" ? <img src={item.dataUrl} alt={item.name} className="h-32 w-full object-cover" /> : <audio controls src={item.dataUrl} className="w-full">Audio update</audio>}<div className="mt-2 truncate text-xs font-bold">{item.name}</div></div>)}</div></div>}
-          <div className="mt-8 border-t border-[#d1d0c8] pt-6"><div className="eyebrow">Incident timeline</div><ol className="mt-4 space-y-4">{incident.timeline.slice().reverse().map((entry) => <li key={entry.id} className="grid grid-cols-[12px_1fr] gap-3"><span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-[#7d9e00]" /><div><div className="flex flex-wrap justify-between gap-2"><strong className="text-sm">{entry.label}</strong><time className="font-mono text-[9px] text-[#7b8076]">{new Date(entry.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time></div><p className="mt-1 text-xs leading-5 text-[#666b61]">{entry.detail}</p></div></li>)}</ol></div>
-        </section>
-
-        <aside className="flex flex-col gap-5">
-          <section className="border-2 border-[#171915] bg-[#e9ff4a] p-5"><div className="eyebrow text-[#414b00]">Investor demo behavior</div><h2 className="mt-2 font-display text-xl font-black">Response simulation is active</h2><p className="mt-2 text-sm leading-6 text-[#424a16]">Acknowledgement and dispatch advance automatically to demonstrate realtime coordination. Production updates will come only from authenticated responders.</p></section>
-          {!closed && <button onClick={() => setUpdateOpen((open) => !open)} className="button-primary"><NotePencil size={20} /> Add information</button>}
-          {updateOpen && <section className="panel p-4"><label className="field-label">What changed?<textarea value={updateText} onChange={(event) => setUpdateText(event.target.value)} className="field-input resize-none" rows={3} maxLength={500} placeholder="Add a short update when you are safe" /></label><div className="mt-3 grid grid-cols-2 gap-2"><label className="button-secondary min-h-11 cursor-pointer px-3"><Camera size={18} /> Photo<input type="file" accept="image/*" capture="environment" onChange={(event) => handleAttachment(event, "photo")} className="hidden" /></label><label className="button-secondary min-h-11 cursor-pointer px-3"><Microphone size={18} /> Voice<input type="file" accept="audio/*" capture onChange={(event) => handleAttachment(event, "audio")} className="hidden" /></label></div>{attachment && <div className="mt-3 bg-[#eceee6] p-2 text-xs font-bold">Attached: {attachment.name}</div>}<button onClick={handleSubmitUpdate} disabled={!updateText.trim() && !attachment} className="button-primary mt-3 w-full disabled:opacity-50">Add to timeline</button></section>}
-          <a href={`tel:${facilityEmergencyNumber.replace(/\s/g, "")}`} className="button-secondary"><Phone size={20} /> Call facility emergency</a>
-          <a href="tel:112" className="button-danger"><Phone size={20} weight="fill" /> Call 112</a>
-          {!closed && <button onClick={() => setCancelOpen(true)} className="button-secondary"><Warning size={20} /> Report false alert</button>}
-          <button onClick={onReportAnother} className="min-h-11 text-sm font-bold underline decoration-2 underline-offset-4">Report another emergency</button>
-          <p className="text-xs leading-5 text-[#6f7469]">This pilot does not contact a public authority. For immediate danger, use the local alarm and call 112.</p>
-        </aside>
-      </div>
-
-      {cancelOpen && <div className="fixed inset-0 z-[95] grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="false-alert-title"><section className="w-full max-w-md border-2 border-[#171915] bg-[#f7f5ee] p-6 shadow-[8px_8px_0_#171915]"><Warning size={28} weight="fill" className="text-[#d74328]" /><h2 id="false-alert-title" className="mt-4 font-display text-2xl font-black">Report a false alert?</h2><p className="mt-3 text-sm leading-6 text-[#62675d]">The incident will be closed and the response team will be updated. The audit record will remain visible.</p><div className="mt-6 grid gap-3 sm:grid-cols-2"><button onClick={() => setCancelOpen(false)} className="button-secondary">Keep incident open</button><button onClick={() => { onCancel(); setCancelOpen(false); }} className="button-danger">Confirm false alert</button></div></section></div>}
     </div>
   );
 }
@@ -1054,15 +980,24 @@ function PilotSettings({ onReset }: { onReset: () => void }) {
 }
 
 function RegionalView({ incidents, onSelect }: { incidents: Incident[]; onSelect: (id: string) => void }) {
-  const regional = incidents.filter((item) => item.escalated && isActive(item));
+  const active = incidents.filter(isActive);
+  const waiting = active.filter((item) => item.status === "triggered").length;
+  const dispatched = active.filter((item) => item.status === "dispatched" || item.status === "on_scene").length;
+  const organizations = new Set(incidents.map((item) => item.organization)).size;
+  const acknowledgementSeconds = incidents.map((incident) => {
+    const acknowledged = incident.timeline.find((entry) => entry.status === "acknowledged" || entry.status === "dispatched");
+    return acknowledged ? Math.max(0, (new Date(acknowledged.at).getTime() - new Date(incident.createdAt).getTime()) / 1000) : null;
+  }).filter((value): value is number => value !== null);
+  const averageAcknowledgement = acknowledgementSeconds.length ? `${Math.round(acknowledgementSeconds.reduce((sum, value) => sum + value, 0) / acknowledgementSeconds.length)}s` : "—";
   return (
     <div>
       <PageHeading
-        eyebrow="Pilot regional coordination"
-        title="One queue. Clear ownership."
-        description="Authorized incidents requested by participating sites, separated from public emergency dispatch until an official integration exists."
+        eyebrow="State / control-room overview"
+        title="Every registered company. One operational picture."
+        description="Monitor active pilot emergencies, response ownership, and company activity without representing this demonstration as public dispatch."
         action={<div className="flex items-center gap-2 bg-[#171915] px-4 py-3 text-xs font-bold text-white"><Radio className="text-[#e9ff4a]" weight="fill" /> Pilot desk online</div>}
       />
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Registered companies" value={String(organizations)} detail="With incident activity" accent="dark" /><Metric label="Active alerts" value={String(active.length)} detail={`${waiting} awaiting acknowledgement`} accent="red" /><Metric label="Units responding" value={String(dispatched)} detail="Dispatched or on scene" accent="lime" /><Metric label="Average acknowledgement" value={averageAcknowledgement} detail="Current browser records" accent="amber" /></div>
       <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
         <section className="relative min-h-[520px] overflow-hidden border-2 border-[#171915] bg-[#20231e] p-6 text-white shadow-[7px_7px_0_#c3c2ba]">
           <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(#a8aea0_1px,transparent_1px)] [background-size:22px_22px]" />
@@ -1078,7 +1013,7 @@ function RegionalView({ incidents, onSelect }: { incidents: Incident[]; onSelect
         </section>
         <section className="panel overflow-hidden">
           <div className="border-b border-[#d5d4cc] p-5 sm:p-6"><div className="eyebrow">External assistance requested</div><h2 className="mt-2 font-display text-2xl font-black">Coordination queue</h2></div>
-          {regional.length ? <div className="divide-y divide-[#d5d4cc]">{regional.map((item) => <IncidentRow key={item.id} incident={item} onSelect={onSelect} />)}</div> : <EmptyState title="Queue is clear" body="Escalated active incidents will appear here." />}
+          {active.length ? <div className="divide-y divide-[#d5d4cc]">{active.map((item) => <IncidentRow key={item.id} incident={item} onSelect={onSelect} />)}</div> : <EmptyState title="No active alerts" body="Active emergencies from registered pilot companies will appear here." />}
         </section>
       </div>
     </div>
@@ -1087,9 +1022,85 @@ function RegionalView({ incidents, onSelect }: { incidents: Incident[]; onSelect
 
 function MapMarker({ className, label, alert = false }: { className: string; label: string; alert?: boolean }) { return <div className={cn("absolute z-10 -translate-x-1/2 -translate-y-1/2", className)}><div className={cn("grid h-9 w-9 place-items-center rounded-full border-4 border-[#20231e]", alert ? "bg-[#ef5f3f]" : "bg-[#e9ff4a] text-[#171915]")}><Buildings size={17} weight="fill" /></div><div className="mt-1 whitespace-nowrap bg-[#171915] px-2 py-1 text-[9px] font-bold uppercase">{label}</div></div>; }
 
-function EscalationQueue({ incidents, onSelect }: { incidents: Incident[]; onSelect: (id: string) => void }) {
-  const queue = incidents.filter((item) => item.escalated);
-  return <div><PageHeading eyebrow="Inter-agency handoff" title="Escalation queue" description="Each request shows what the site has already done, what help it is requesting and who owns the next action." /><section className="panel divide-y divide-[#d5d4cc] overflow-hidden">{queue.map((item) => <IncidentRow key={item.id} incident={item} onSelect={onSelect} />)}</section></div>;
+function ControlCompaniesPage({ incidents, onSelect }: { incidents: Incident[]; onSelect: (id: string) => void }) {
+  const [query, setQuery] = useState("");
+  const [selectedOrganization, setSelectedOrganization] = useState<string | null>(null);
+  const organizations = Array.from(new Set(incidents.map((item) => item.organization))).map((name) => {
+    const companyIncidents = incidents.filter((item) => item.organization === name);
+    return { name, incidents: companyIncidents, active: companyIncidents.filter(isActive).length, resolved: companyIncidents.filter((item) => !isActive(item)).length };
+  }).filter((item) => item.name.toLowerCase().includes(query.toLowerCase()));
+  const selectedIncidents = selectedOrganization ? incidents.filter((item) => item.organization === selectedOrganization) : [];
+  return <div><PageHeading eyebrow="Registered-company directory" title="Company-level emergency activity." description="Compare active and historical alert counts, then open the records for one registered pilot organization." /><div className="mb-5"><input aria-label="Search registered companies" value={query} onChange={(event) => setQuery(event.target.value)} className="field-input mt-0 max-w-xl" placeholder="Search company name" /></div><div className="grid gap-4 lg:grid-cols-2">{organizations.map((company) => <button key={company.name} onClick={() => setSelectedOrganization(company.name)} className={cn("panel p-5 text-left transition-colors hover:bg-[#e9ff4a]", selectedOrganization === company.name && "border-2 border-[#171915] bg-[#e9ff4a]")}><div className="flex items-start justify-between gap-4"><div className="grid h-11 w-11 place-items-center bg-[#171915] text-[#e9ff4a]"><Buildings size={23} weight="fill" /></div><span className="font-mono text-[9px] font-bold uppercase">{company.incidents.length} total alerts</span></div><h2 className="mt-5 font-display text-xl font-black">{company.name}</h2><div className="mt-4 grid grid-cols-2 gap-3 border-t border-[#c9c8c0] pt-4 text-sm"><div><span className="block text-xs text-[#757a70]">Active</span><strong className="text-xl">{company.active}</strong></div><div><span className="block text-xs text-[#757a70]">Resolved / closed</span><strong className="text-xl">{company.resolved}</strong></div></div></button>)}</div>{selectedOrganization && <section className="panel mt-5 overflow-hidden"><div className="border-b border-[#d3d2ca] p-5"><div className="eyebrow">Selected company</div><h2 className="mt-2 font-display text-2xl font-black">{selectedOrganization}</h2></div><div className="divide-y divide-[#d5d4cc]">{selectedIncidents.map((incident) => <IncidentRow key={incident.id} incident={incident} onSelect={onSelect} />)}</div></section>}</div>;
+}
+
+const controlResponseUnits = [
+  "Fire & Rescue Unit F-04",
+  "Hazmat Unit H-02",
+  "Police Patrol P-17",
+  "Ambulance Unit A-12",
+];
+
+const recommendedUnitByCategory: Record<Category, string> = {
+  fire: controlResponseUnits[0],
+  hazmat: controlResponseUnits[1],
+  security: controlResponseUnits[2],
+  medical: controlResponseUnits[3],
+};
+
+function ControlDispatchDesk({ incidents, onSelect, onDispatch }: { incidents: Incident[]; onSelect: (id: string) => void; onDispatch: (id: string, unit: string) => void }) {
+  const active = incidents.filter(isActive);
+  const [selectedIncidentId, setSelectedIncidentId] = useState(active[0]?.id ?? "");
+  const [selectedUnit, setSelectedUnit] = useState(active[0] ? recommendedUnitByCategory[active[0].category] : controlResponseUnits[0]);
+  const selectedIncidentFromState = active.find((item) => item.id === selectedIncidentId);
+  const selectedIncident = selectedIncidentFromState ?? active[0];
+  const effectiveSelectedIncidentId = selectedIncident?.id ?? "";
+  const effectiveSelectedUnit = selectedIncidentFromState
+    ? selectedUnit
+    : selectedIncident
+      ? recommendedUnitByCategory[selectedIncident.category]
+      : selectedUnit;
+  const handleIncidentSelection = (incident: Incident) => {
+    setSelectedIncidentId(incident.id);
+    setSelectedUnit(recommendedUnitByCategory[incident.category]);
+  };
+  const communications = incidents.slice(0, 5).flatMap((incident) => [
+    { id: `${incident.id}-voice`, incident: incident.id, direction: "Outbound", channel: "AI voice call", recipient: "Company emergency desk", state: "Simulated completed" },
+    { id: `${incident.id}-sms`, incident: incident.id, direction: "Outbound", channel: "SMS fallback", recipient: "On-duty response contacts", state: "Simulated delivered" },
+    { id: `${incident.id}-callback`, incident: incident.id, direction: "Inbound", channel: "Control-room callback", recipient: incident.organization, state: incident.status === "triggered" ? "Awaiting response" : "Simulated acknowledged" },
+  ]);
+  return <div><PageHeading eyebrow="Control-room dispatch" title="Assign the right unit and preserve the handoff." description="Select an active emergency and a suitable response unit. AI voice and SMS rows below demonstrate the planned communication audit trail." /><div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]"><section className="panel overflow-hidden"><div className="border-b border-[#d3d2ca] p-5"><h2 className="font-display text-2xl font-black">Active dispatch queue</h2><p className="mt-1 text-sm text-[#6b7066]">{active.length} incident{active.length === 1 ? "" : "s"} require monitoring.</p></div>{active.length ? <><div className="divide-y divide-[#d5d4cc]">{active.map((incident) => <label key={incident.id} className={cn("flex cursor-pointer items-start gap-3 p-5", effectiveSelectedIncidentId === incident.id && "bg-[#e8edda]")}><input type="radio" name="dispatch-incident" checked={effectiveSelectedIncidentId === incident.id} onChange={() => handleIncidentSelection(incident)} className="mt-1 h-5 w-5 accent-[#171915]" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><strong>{incident.id}</strong><StatusBadge status={incident.status} /></div><div className="mt-1 text-sm">{categoryLabels[incident.category]} · {incident.organization}</div><div className="mt-1 text-xs text-[#74796e]">{incident.facility} · {incident.zone}</div></div><button type="button" onClick={() => onSelect(incident.id)} className="min-h-11 text-xs font-bold underline">Details</button></label>)}</div><div className="border-t-2 border-[#171915] bg-[#eceee6] p-5"><label className="field-label">Response unit<select value={effectiveSelectedUnit} onChange={(event) => { if (selectedIncident) setSelectedIncidentId(selectedIncident.id); setSelectedUnit(event.target.value); }} className="field-input bg-white">{controlResponseUnits.map((unit) => <option key={unit}>{unit}</option>)}</select></label><button onClick={() => selectedIncident && onDispatch(selectedIncident.id, effectiveSelectedUnit)} disabled={!selectedIncident} className="button-primary mt-4 w-full disabled:opacity-50"><Radio size={20} weight="fill" /> Assign and dispatch unit</button></div></> : <EmptyState title="No active incidents" body="New company emergencies will appear here for assignment." />}</section><aside className="space-y-5"><section className="border-2 border-[#171915] bg-[#20231e] p-5 text-white"><div className="font-mono text-[9px] font-bold uppercase tracking-[0.17em] text-[#e9ff4a]">Integration boundary</div><h2 className="mt-3 font-display text-xl font-black">AI voice and Twilio are simulated</h2><p className="mt-2 text-sm leading-6 text-[#c8ccc1]">No call or SMS is sent by this build. Production requires protected provider credentials, signed delivery callbacks, retries, consent, and an approved call script.</p></section></aside></div><section className="panel mt-5 overflow-hidden"><div className="border-b border-[#d3d2ca] p-5"><div className="eyebrow">Voice and SMS audit preview</div><h2 className="mt-2 font-display text-2xl font-black">Communication activity</h2></div><div className="divide-y divide-[#d5d4cc]">{communications.map((record) => <div key={record.id} className="grid gap-2 p-4 sm:grid-cols-[120px_1fr_1fr_auto] sm:items-center"><span className="justify-self-start border border-[#aeb1a8] px-2 py-1 font-mono text-[9px] font-bold uppercase">{record.direction}</span><div><strong>{record.channel}</strong><div className="text-xs text-[#74796e]">{record.incident}</div></div><div className="text-sm">{record.recipient}</div><span className="justify-self-start bg-[#fff0bd] px-2 py-1 font-mono text-[9px] font-bold uppercase text-[#735300]">{record.state}</span></div>)}</div></section></div>;
+}
+
+function escapeCsv(value: string | number | boolean | null | undefined) {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function downloadIncidentCsv(incidents: Incident[]) {
+  const header = ["incident_id", "organization", "facility", "category", "status", "worker", "employee_id", "zone", "location", "created_at", "response_unit", "escalated", "drill"];
+  const rows = incidents.map((incident) => [incident.id, incident.organization, incident.facility, categoryLabels[incident.category], statusLabels[incident.status], incident.worker, incident.workerId, incident.zone, incident.location, incident.createdAt, incident.assignedTeam, incident.escalated, Boolean(incident.isDrill)]);
+  const csv = [header, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `zioguard-incidents-${new Date().toISOString().slice(0, 10)}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function ControlHistoryPage({ incidents, onSelect }: { incidents: Incident[]; onSelect: (id: string) => void }) {
+  const [query, setQuery] = useState("");
+  const history = incidents.filter((item) => !isActive(item)).filter((item) => `${item.id} ${item.organization} ${item.worker} ${item.category}`.toLowerCase().includes(query.toLowerCase()));
+  const resolved = incidents.filter((item) => item.status === "resolved").length;
+  const falseAlerts = incidents.filter((item) => item.status === "cancelled").length;
+  const responseDuration = (incident: Incident) => {
+    const closingEvent = incident.timeline.slice().reverse().find((entry) => entry.status === "resolved" || entry.status === "cancelled");
+    if (!closingEvent) return "Not closed";
+    const seconds = Math.max(0, Math.round((new Date(closingEvent.at).getTime() - new Date(incident.createdAt).getTime()) / 1000));
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  };
+  return <div><PageHeading eyebrow="Historical response records" title="Review outcomes and export evidence." description="Search company-wise incident history and download the current pilot dataset as CSV." action={<button onClick={() => downloadIncidentCsv(incidents)} className="button-primary"><DownloadSimple size={20} /> Download CSV</button>} /><div className="mb-5 grid gap-3 sm:grid-cols-3"><Metric label="Historical records" value={String(history.length)} detail="Matching current search" accent="dark" /><Metric label="Resolved" value={String(resolved)} detail="Response completed" accent="lime" /><Metric label="False alerts" value={String(falseAlerts)} detail="Closed with audit retained" accent="amber" /></div><section className="panel overflow-hidden"><div className="border-b border-[#d3d2ca] p-5"><input aria-label="Search incident history" value={query} onChange={(event) => setQuery(event.target.value)} className="field-input mt-0" placeholder="Search incident ID, company, worker, or category" /></div><div className="divide-y divide-[#d5d4cc]">{history.length ? history.map((incident) => <div key={incident.id}><IncidentRow incident={incident} onSelect={onSelect} /><div className="-mt-3 flex flex-wrap gap-4 px-5 pb-4 pl-[88px] font-mono text-[9px] font-bold uppercase text-[#777c72]"><span>Response time: {responseDuration(incident)}</span><span>Company: {incident.organization}</span><span>Unit: {incident.assignedTeam ?? "Not recorded"}</span></div></div>) : <EmptyState title="No matching history" body="Resolved and false-alert records will appear here." />}</div></section></div>;
 }
 
 function ResourcesPage() {
@@ -1098,8 +1109,9 @@ function ResourcesPage() {
 
 function ResourceCard({ title, count, detail, status, icon }: { title: string; count: string; detail: string; status: string; icon: ReactNode }) { return <section className="panel p-6"><div className="flex justify-between"><div className="grid h-12 w-12 place-items-center bg-[#171915] text-[#e9ff4a]">{icon}</div><span className="self-start bg-[#e9ebdf] px-2 py-1 text-[10px] font-bold">{status}</span></div><div className="mt-7 font-display text-5xl font-black tracking-[-0.05em]">{count}</div><h2 className="mt-2 font-display text-xl font-black">{title}</h2><p className="mt-1 text-sm text-[#6b7066]">{detail}</p></section>; }
 
-function IncidentDetail({ incident, role, onClose, onAdvance, onEscalate, onNote }: { incident: Incident; role: Role; onClose: () => void; onAdvance: () => void; onEscalate: () => void; onNote: (detail: string) => void }) {
+function IncidentDetail({ incident, role, onClose, onAdvance, onEscalate, onNote, onCancel }: { incident: Incident; role: Role; onClose: () => void; onAdvance: () => void; onEscalate: () => void; onNote: (detail: string) => void; onCancel: () => void }) {
   const [internalNote, setInternalNote] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
   useEffect(() => { const handleKey = (event: KeyboardEvent) => event.key === "Escape" && onClose(); window.addEventListener("keydown", handleKey); return () => window.removeEventListener("keydown", handleKey); }, [onClose]);
   const meta = categoryStyles[incident.category];
   const Icon = meta.icon;
@@ -1123,10 +1135,12 @@ function IncidentDetail({ incident, role, onClose, onAdvance, onEscalate, onNote
           )}
           {role !== "worker" && !incident.escalated && <p className="mt-3 text-xs leading-5 text-[#767b70]">“Request external help” adds the incident to this pilot’s control-room queue. It does not contact a public agency.</p>}
           {role !== "worker" && <section className="mt-6 border border-[#c9c8c0] bg-white p-4"><label className="field-label">Internal command note<textarea value={internalNote} onChange={(event) => setInternalNote(event.target.value)} className="field-input resize-none" rows={2} maxLength={500} placeholder="Decision, observation, or handoff note" /></label><button onClick={() => { if (!internalNote.trim()) return; onNote(internalNote); setInternalNote(""); }} disabled={!internalNote.trim()} className="button-secondary mt-3 disabled:opacity-50">Add immutable note</button></section>}
+          {role === "worker" && <div className="mt-6 grid gap-3 sm:grid-cols-2"><a href="tel:112" className="button-danger"><Phone size={19} weight="fill" /> Call 112</a>{isActive(incident) && <button onClick={() => setCancelOpen(true)} className="button-secondary"><Warning size={19} /> Report false alert</button>}</div>}
           {incident.status === "resolved" && <section className="mt-6 border-2 border-[#7d9e00] bg-[#e8edda] p-4"><div className="eyebrow">Post-incident review</div><div className="mt-2 flex items-center justify-between gap-3"><strong>Review {incident.reviewStatus ?? "pending"}</strong><span className="font-mono text-[9px] font-bold uppercase">Outcome recorded</span></div></section>}
           <div className="mt-9"><div className="eyebrow">Immutable activity record</div><h3 className="mt-2 font-display text-2xl font-black">Incident timeline</h3><ol className="mt-6 space-y-0">{incident.timeline.map((entry, index) => <li key={entry.id} className="relative grid grid-cols-[28px_1fr] gap-3 pb-6"><div className="relative"><span className={cn("relative z-10 grid h-7 w-7 place-items-center rounded-full border-2", index === incident.timeline.length - 1 ? "border-[#171915] bg-[#e9ff4a]" : "border-[#7b8075] bg-[#f4f2eb]")}><span className="h-1.5 w-1.5 rounded-full bg-[#171915]" /></span>{index < incident.timeline.length - 1 && <span className="absolute left-[13px] top-7 h-[calc(100%+1px)] w-px bg-[#b6b9b0]" />}</div><div className="pb-1"><div className="flex flex-wrap justify-between gap-2"><strong className="font-display">{entry.label}</strong><time className="font-mono text-[9px] uppercase text-[#7b8076]">{new Date(entry.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time></div><p className="mt-1 text-sm leading-5 text-[#666b61]">{entry.detail}</p><div className="mt-2 text-[11px] font-semibold text-[#888c82]">By {entry.actor}</div></div></li>)}</ol></div>
         </div>
       </section>
+      {cancelOpen && <div className="fixed inset-0 z-[95] grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="false-alert-title"><section className="w-full max-w-md border-2 border-[#171915] bg-[#f7f5ee] p-6 shadow-[8px_8px_0_#171915]"><Warning size={28} weight="fill" className="text-[#d74328]" /><h2 id="false-alert-title" className="mt-4 font-display text-2xl font-black">Report a false alert?</h2><p className="mt-3 text-sm leading-6 text-[#62675d]">The incident will be closed while its audit record remains available in My incidents.</p><div className="mt-6 grid gap-3 sm:grid-cols-2"><button onClick={() => setCancelOpen(false)} className="button-secondary">Keep incident open</button><button onClick={() => { onCancel(); setCancelOpen(false); }} className="button-danger">Confirm false alert</button></div></section></div>}
     </div>
   );
 }

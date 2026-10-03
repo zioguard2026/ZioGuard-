@@ -1,14 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { advanceIncident, cancelIncident, categoryLabels, createIncident, escalateIncident, formatElapsed, isActive } from "./model";
+import { advanceIncident, cancelIncident, categoryLabels, createIncident, dispatchIncident, escalateIncident, formatElapsed, isActive } from "./model";
 
 describe("incident lifecycle", () => {
   it("keeps the four approved worker emergency choices", () => {
     expect(categoryLabels).toEqual({
-      fire: "Fire / Smoke",
-      hazmat: "Chemical / Gas",
-      security: "Security Threat",
-      medical: "Medical Emergency",
+      fire: "FIRE",
+      hazmat: "HAZMAT",
+      security: "SECURITY",
+      medical: "AMBULANCE",
     });
+  });
+
+  it("assigns and dispatches a control-room response unit", () => {
+    const incident = createIncident("medical", "Worker needs an ambulance", "Warehouse", "Facility location");
+    const dispatched = dispatchIncident(incident, "Police Control Operator", "Ambulance Unit A-12");
+    expect(dispatched.status).toBe("dispatched");
+    expect(dispatched.assignedTeam).toBe("Ambulance Unit A-12");
+    expect(dispatched.timeline.at(-1)?.label).toContain("dispatched");
   });
 
   it("creates a trackable incident with a first timeline entry", () => {

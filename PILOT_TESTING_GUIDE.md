@@ -15,7 +15,7 @@ It is suitable for an investor walkthrough and controlled usability testing. It 
 
 | Persona | Database role | Landing workspace | Purpose |
 | --- | --- | --- | --- |
-| Pilot Client | `worker` | Emergency | Raise and follow an emergency alert |
+| Pilot Client | `worker` | Emergency | Raise an alert, immediately return home, and review status separately |
 | Pilot Administrator | `company_admin` | Company command | Coordinate, progress, escalate, configure, and review |
 | Police Control Operator | `control_room` | Regional view | Review escalations and regional resource context |
 
@@ -29,13 +29,13 @@ Credentials are deliberately not stored in Git or this guide. Rotate the initial
 Client chooses one of four emergencies
   → confirmation sheet gathers zone, GPS/facility location, detail, voice note
   → client confirms
-  → browser creates incident and timeline
-  → demo acknowledges after about 4.2 seconds
-  → demo dispatches a team after about 9 seconds
+  → browser creates incident and returns the client to the four emergency choices
+  → a compact success receipt provides the incident ID and a My incidents shortcut
+  → demo acknowledgement and dispatch continue in the background
   → administrator reviews, adds command notes, advances status, or requests external help
-  → escalated incident appears in the police control-room queue
+  → the police/control room sees company activity, dispatches a simulated unit, and reviews communication activity
   → incident can progress to on scene and resolved
-  → analytics and history reflect the browser-local record
+  → analytics, company history, and CSV export reflect the browser-local record
 ```
 
 ### Critical testing constraint
@@ -58,15 +58,16 @@ NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=true
 Test each persona separately:
 
 1. Open the application while signed out.
-2. Confirm the email/password screen appears and there is no public registration option.
-3. Enter an incorrect password; expect the generic access error.
-4. Sign in with the client account; expect **Emergency** and worker-only navigation.
-5. Confirm the role switcher is absent.
-6. Refresh the page; expect the session and assigned workspace to remain.
-7. Sign out using the desktop sidebar and repeat using the mobile header.
-8. Sign in with the administrator; expect **Company command**.
-9. Sign in with the police account; expect **Regional view**.
-10. Confirm neither privileged account can switch itself into another role.
+2. Confirm the intro page explains the worker, company-admin, and control-room workspaces.
+3. Select **Continue to sign in** and confirm there is no public registration option.
+4. Enter an incorrect password; expect the generic access error.
+5. Sign in with the client account; expect **Emergency** and worker-only navigation.
+6. Confirm the role switcher is absent.
+7. Refresh the page; expect the session and assigned workspace to remain.
+8. Sign out using the desktop sidebar and repeat using the mobile header.
+9. Sign in with the administrator; expect **Company command**.
+10. Sign in with the police account; expect **Regional view**.
+11. Confirm neither privileged account can switch itself into another role.
 
 Expected security behavior:
 
@@ -80,10 +81,10 @@ Expected security behavior:
 
 1. Sign in as the client persona.
 2. Confirm only these four large options are present:
-   - Fire / Smoke
-   - Chemical / Gas
-   - Security Threat
-   - Medical Emergency
+   - FIRE
+   - HAZMAT
+   - SECURITY
+   - AMBULANCE
 3. Confirm there is no separate giant red alert button.
 4. Tap a category; expect the confirmation sheet immediately.
 5. Press **Go back**; confirm no incident is created.
@@ -115,22 +116,20 @@ Voice cases:
 2. Deny microphone permission; expect a non-blocking message and continued alert access.
 3. Leave voice blank; confirmation must still work.
 
-### Incident confirmation and live tracker
+### Incident confirmation and home return
 
 1. Add a short detail and press **Confirm and alert team**.
-2. Expect a generated `ZG-YYYY-NNNNNN` incident ID and **Alert delivered**.
-3. Expect **Waiting for acknowledgement** initially.
-4. At about 4.2 seconds, expect demo acknowledgement and an assigned response team.
-5. At about 9 seconds, expect **Team dispatched**.
-6. Confirm category-specific safety instructions, zone, available location, reporter, progress rail, and timeline.
-7. Add a text update.
-8. Add a photo and an audio attachment when safe.
-9. Confirm the update appears in the incident timeline.
-10. Test **Call facility emergency** and **Call 112** on a suitable mobile test device; desktop systems may only open a compatible calling application.
+2. Expect the confirmation sheet to close immediately and the four emergency choices to remain available.
+3. Expect a compact **Alert sent** receipt with a generated `ZG-YYYY-NNNNNN` incident ID.
+4. Confirm another emergency can be started immediately; the worker is not trapped on a live-tracker page.
+5. Select **View My incidents** and open the new record to inspect delivery state, timeline, location, response status, and safety guidance.
+6. At about 4.2 seconds, expect the background demo acknowledgement and an assigned response team.
+7. At about 9 seconds, expect **Team dispatched** in My incidents.
+8. Test **Call 112** on a suitable mobile test device; desktop systems may only open a compatible calling application.
 
 ### False-alert handling
 
-1. Press **Report false alert**.
+1. Open the incident from **My incidents**, then press **Report false alert**.
 2. Press **Keep incident open**; expect no change.
 3. Reopen and press **Confirm false alert**.
 4. Expect status **False alert closed** and a retained timeline entry.
@@ -181,16 +180,19 @@ Management changes in this workspace are local/in-memory pilot interactions. The
 
 ## 7. Police/control-room test
 
-Use the same browser profile after the administrator has requested external help.
+Use the same browser profile after creating incidents as the worker. External escalation is not required for an active alert to appear in the control-room view.
 
 1. Sign out and sign in as the police persona.
 2. Confirm landing page **Regional view**.
-3. Verify only active escalated incidents appear in the regional coordination queue.
-4. Open the escalated incident and inspect the site actions and timeline.
-5. Add a coordination note or advance the simulated lifecycle.
-6. Open **Escalation queue**; this view includes all escalated records, including closed examples.
-7. Open **Resources** and verify the sample fire, medical, and police resource cards.
-8. Confirm the visible warning that resource counts are planning samples and not confirmed public capacity.
+3. Verify all active company incidents appear in the regional coordination queue.
+4. Open **All companies**, search a company, and inspect its active, resolved, and total incident counts.
+5. Open **Dispatch desk**, select an incident, confirm the category-based recommended unit, and assign it.
+6. Confirm the incident timeline records the simulated dispatch assignment.
+7. Review the inbound/outbound AI voice, SMS, and callback activity preview.
+8. Confirm the visible boundary stating that no real AI call or Twilio message is sent.
+9. Open **History & CSV**, search closed records, review response time and assigned unit, and download the CSV.
+10. Open **Resources** and verify the sample fire, medical, and police resource cards.
+11. Confirm the visible warning that resource counts are planning samples and not confirmed public capacity.
 
 No action in this workspace currently dispatches or messages a public authority.
 
@@ -266,26 +268,27 @@ For npm users, run `npm run dev` during development. After `npm run build`, use 
 
 Current evidence on 2026-10-03:
 
-- lifecycle and approved-label tests: 6 passed;
+- lifecycle, approved-label, and control-room dispatch tests: 7 passed;
 - ESLint: passed;
 - TypeScript production compilation: passed;
 - Vite production build: passed;
 - 4,608 modules transformed successfully;
-- current Git revision: `92ba2f7` before this guide was added.
+- browser/manual visual verification was not performed for this change set.
 
 ## 12. Investor demonstration script
 
 Recommended five-minute sequence:
 
-1. Client logs in and selects Fire / Smoke.
+1. Client logs in and selects FIRE.
 2. Show identity, zone, GPS/facility fallback, recipients, optional detail, and confirmation.
-3. Confirm and show the live worker tracker, acknowledgement, dispatch, safety instructions, and timeline.
+3. Confirm and show the immediate return to the four emergency choices; use **My incidents** to show the background acknowledgement, dispatch, safety instructions, and timeline.
 4. Sign out and enter the administrator workspace in the same browser.
-5. Open the incident, add a note, and request external help.
+5. Open the organization-scoped incident, add a note, and show the response lifecycle.
 6. Sign out and enter the police workspace in the same browser.
-7. Show the regional escalation queue and resource-context warning.
-8. Return to the administrator's response review and explain which metrics will become measured pilot evidence.
-9. Close by showing Pilot setup and stating which integrations are connected versus planned.
+7. Show the all-company view, dispatch a suitable unit, and explain the simulated voice/SMS audit trail.
+8. Show historical response times and download the CSV.
+9. Return to the administrator's response review and explain which metrics will become measured pilot evidence.
+10. Close by showing Pilot setup and stating which integrations are connected versus planned.
 
 Never describe the current simulation as live dispatch, realtime multi-device coordination, or confirmed notification delivery.
 
@@ -295,9 +298,9 @@ The investor/demo build passes when:
 
 - all three accounts authenticate and route to the correct workspace;
 - role switching is unavailable after login;
-- worker emergency confirmation and fallback location work;
+- worker emergency confirmation, fallback location, immediate home return, and My incidents status access work;
 - incident simulation progresses without UI errors;
-- command notes, status changes, escalation, and control-room views work in one browser profile;
+- company-scoped command views, status changes, control-room dispatch, history, and CSV export work in one browser profile;
 - offline mode cannot claim delivery;
 - sign-out works on mobile and desktop;
 - tests, lint, and production build pass;

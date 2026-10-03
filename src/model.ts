@@ -74,10 +74,10 @@ export const statusLabels: Record<IncidentStatus, string> = {
 };
 
 export const categoryLabels: Record<Category, string> = {
-  fire: "Fire / Smoke",
-  hazmat: "Chemical / Gas",
-  security: "Security Threat",
-  medical: "Medical Emergency",
+  fire: "FIRE",
+  hazmat: "HAZMAT",
+  security: "SECURITY",
+  medical: "AMBULANCE",
 };
 
 export const seedIncidents: Incident[] = [
@@ -388,6 +388,27 @@ export function escalateIncident(incident: Incident, actor: string): Incident {
         status: "escalated",
         label: "External assistance requested",
         detail: "Added to the pilot control-room queue. This demo does not dispatch a public authority.",
+        at: new Date().toISOString(),
+        actor,
+      },
+    ],
+  };
+}
+
+export function dispatchIncident(incident: Incident, actor: string, responseUnit: string): Incident {
+  if (incident.status === "resolved" || incident.status === "cancelled") return incident;
+  if (incident.status === "on_scene") return { ...incident, assignedTeam: responseUnit };
+  return {
+    ...incident,
+    status: "dispatched",
+    assignedTeam: responseUnit,
+    timeline: [
+      ...incident.timeline,
+      {
+        id: crypto.randomUUID(),
+        status: "dispatched",
+        label: `${responseUnit} dispatched`,
+        detail: "Control room assigned the response unit and recorded dispatch in the pilot timeline.",
         at: new Date().toISOString(),
         actor,
       },

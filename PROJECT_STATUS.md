@@ -13,7 +13,7 @@ ZioGuard is an installable investor and pilot demonstration for industrial incid
 ### Worker emergency flow
 
 - [x] Removed the separate large red alert button.
-- [x] Four direct emergency choices: fire/smoke, chemical/gas, security threat, and medical emergency.
+- [x] Four direct emergency choices: FIRE, HAZMAT, SECURITY, and AMBULANCE.
 - [x] Category tap opens a mobile confirmation sheet immediately.
 - [x] Confirmation displays worker, organization, facility, shift, zone, location source, accuracy, and intended recipients.
 - [x] Optional text detail.
@@ -24,22 +24,15 @@ ZioGuard is an installable investor and pilot demonstration for industrial incid
 - [x] Haptic feedback where supported.
 - [x] Explicit pilot/public-dispatch boundary.
 
-### Active worker response
+### Worker post-alert response
 
-- [x] Incident ID and delivery confirmation.
-- [x] Live acknowledgement countdown.
-- [x] Current status and progress rail.
-- [x] Assigned response team.
-- [x] Category-specific safety instructions.
-- [x] Worker-visible timeline.
-- [x] Add a text update.
-- [x] Add a photo when safe.
-- [x] Add an audio update through the device capture flow.
-- [x] Call facility emergency number.
+- [x] Confirmation closes immediately and returns the worker to the four emergency choices.
+- [x] Compact success receipt provides the incident ID, delivery confirmation, and My incidents shortcut.
+- [x] Background demonstration acknowledgement and dispatch continue without navigation lock-in.
+- [x] My incidents provides current status, assigned response team, safety guidance, and timeline.
 - [x] Call 112.
-- [x] Report a false alert through a confirmation step.
+- [x] Report a false alert from incident details through a confirmation step.
 - [x] False alert remains in the incident audit trail.
-- [x] Investor simulation automatically demonstrates acknowledgement and dispatch.
 
 ### Worker account and safety experience
 
@@ -55,6 +48,7 @@ ZioGuard is an installable investor and pilot demonstration for industrial incid
 
 ### Company command experience
 
+- [x] Authenticated organization scoping prevents company administrators from seeing other organizations' incidents.
 - [x] Active-incident priority queue.
 - [x] Action-required panel for unacknowledged incidents.
 - [x] Facility schematic and resource readiness.
@@ -90,6 +84,18 @@ These management actions currently operate as persistent or in-session pilot int
 - [x] Acknowledgement, assignment, arrival, delivery, unresolved, escalation, false-alert, and drill metrics.
 - [x] Investor narrative explicitly marked as drill/demo evidence.
 
+### Police/control-room experience
+
+- [x] Regional overview shows all active company emergencies and acknowledgement metrics.
+- [x] Searchable all-companies directory with active, resolved, and total alert counts.
+- [x] Company drilldown into its incident records.
+- [x] Dispatch desk with category-based unit recommendation and audited simulated assignment.
+- [x] Inbound/outbound AI voice, SMS, and callback activity preview.
+- [x] Explicit statement that AI voice and Twilio delivery are not connected.
+- [x] Searchable closed-incident history with response time and assigned unit.
+- [x] Browser-generated incident CSV download.
+- [x] Sample resource view clearly separated from confirmed public capacity.
+
 ### PWA and accessibility
 
 - [x] Installable manifest and service worker.
@@ -99,6 +105,12 @@ These management actions currently operate as persistent or in-session pilot int
 - [x] Visible focus states.
 - [x] Reduced-motion support.
 - [x] Semantic status and dialog labels.
+
+### Sign-in and navigation
+
+- [x] Intro page explains the worker, company-admin, and control-room workspaces.
+- [x] Simple email/password sign-in remains closed to public registration.
+- [x] Role-authorized users land directly in their assigned workspace.
 
 ## Supabase database state
 
@@ -189,6 +201,7 @@ The application role lock is a navigation safeguard; RLS and audited RPCs are th
 - [ ] Add signed download URLs and attachment retention rules.
 - [ ] Connect Web Push and store real delivery receipts.
 - [ ] Connect optional test SMS/voice providers.
+- [ ] Implement the AI voice-call workflow with approved scripts, consent, signed callbacks, retry handling, and audited outcomes.
 - [ ] Add retry queue, idempotency keys, and dead-letter handling.
 - [ ] Enforce MFA AAL in RLS for privileged mutations.
 - [ ] Add server-side audit records for administration changes.
@@ -247,7 +260,7 @@ The application role lock is a navigation safeguard; RLS and audited RPCs are th
 
 ### 2026-10-03
 
-- Automated lifecycle and approved-label tests: 6 passed.
+- Automated lifecycle, approved-label, and control-room dispatch tests: 7 passed.
 - ESLint: passed after Auth/operations integration.
 - TypeScript production compilation: passed.
 - Vite production build: passed.
@@ -268,8 +281,9 @@ The application role lock is a navigation safeguard; RLS and audited RPCs are th
 3. Verify migration 003 policies and privileges using `PILOT_TESTING_GUIDE.md`.
 4. Connect worker incident RPC creation and shared incident reads.
 5. Connect realtime company/responder/control-room updates.
-6. Add private attachment storage and real notification receipts.
-7. Run a five-user internal drill including failure and fallback cases.
-8. Correct usability and operational issues from the drill.
-9. Deploy to the intended Vercel account and repeat security checks.
-10. Run the investor demonstration with recorded drill evidence.
+6. Connect protected AI voice/SMS delivery and signed provider callbacks in a non-production test environment.
+7. Add private attachment storage and real notification receipts.
+8. Run a five-user internal drill including failure and fallback cases.
+9. Correct usability and operational issues from the drill.
+10. Deploy to the intended Vercel account and repeat security checks.
+11. Run the investor demonstration with recorded drill evidence.
