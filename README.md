@@ -43,6 +43,7 @@ The pilot should be positioned as **industrial incident coordination**, not as a
 - A Supabase migration foundation with tenant-aware roles, row-level security, guarded lifecycle functions, append-only events, and realtime publication.
 - A second migration for facility zones, richer membership profiles, response teams, responder skills/readiness, device subscriptions, incident assignments, and notification delivery evidence.
 - Accessibility basics: semantic structure, keyboard controls, focus states, reduced-motion support, contrast, and 44px minimum targets.
+- Supabase email/password authentication with active worker, company-administrator, and control-room personas and role-locked navigation.
 
 ## Important pilot boundary
 
@@ -50,7 +51,8 @@ This preview is an interactive product pilot, not a live safety system.
 
 - Incident data is stored only in the current browser using `localStorage`.
 - No SMS, WhatsApp, voice call, n8n flow, public authority, or responder is contacted.
-- Role switching is a demo control, not authentication.
+- Role switching is available only while Auth is disabled for unrestricted demonstration. With Auth enabled, the active Supabase membership locks the workspace.
+- Incidents remain browser-local, so the three-persona walkthrough must use the same browser profile until shared Supabase incidents and Realtime are connected.
 - A newly raised alert automatically advances through demo acknowledgement and dispatch so an investor can see the worker-side realtime experience. This behavior must be replaced by authenticated responder updates before a live pilot.
 - The schematic map and resource counts are sample data.
 - Offline mode keeps the interface available but cannot deliver an alert to another device.
@@ -83,8 +85,8 @@ pnpm lint
 pnpm build
 ```
 
-The current build has four lifecycle unit tests and is configured for a Vercel static deployment.
+The current build has six lifecycle and approved-label unit tests and is configured for a Vercel static deployment.
 
-See `SUPABASE_SETUP.md` for the safe database connection sequence. Apply both migrations in timestamp order; the remote schema is intentionally not changed automatically from the browser application.
+See `SUPABASE_SETUP.md` for the safe database connection sequence. Apply all three migrations in timestamp order; the remote schema is intentionally not changed automatically from the browser application.
 
-Continue with `SUPABASE_AUTH_SETUP.md` for invite-only email OTP and the first administrator. `PROJECT_STATUS.md` is the living implementation and rollout tracker.
+Continue with `SUPABASE_AUTH_SETUP.md` for the three-persona email/password setup. `PILOT_TESTING_GUIDE.md` contains the complete role-by-role test procedure, and `PROJECT_STATUS.md` is the living implementation and rollout tracker.

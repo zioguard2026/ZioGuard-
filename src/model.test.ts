@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { advanceIncident, cancelIncident, createIncident, escalateIncident, formatElapsed, isActive } from "./model";
+import { advanceIncident, cancelIncident, categoryLabels, createIncident, escalateIncident, formatElapsed, isActive } from "./model";
 
 describe("incident lifecycle", () => {
+  it("keeps the four approved worker emergency choices", () => {
+    expect(categoryLabels).toEqual({
+      fire: "Fire / Smoke",
+      hazmat: "Chemical / Gas",
+      security: "Security Threat",
+      medical: "Medical Emergency",
+    });
+  });
+
   it("creates a trackable incident with a first timeline entry", () => {
     const incident = createIncident("fire", "Smoke near line 2", "Line 2", "12, 80");
     expect(incident.id).toMatch(/^ZG-\d{4}-\d{6}$/);

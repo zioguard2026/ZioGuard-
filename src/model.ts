@@ -74,10 +74,10 @@ export const statusLabels: Record<IncidentStatus, string> = {
 };
 
 export const categoryLabels: Record<Category, string> = {
-  fire: "Fire / explosion",
-  hazmat: "Hazardous material",
-  security: "Security threat",
-  medical: "Medical emergency",
+  fire: "Fire / Smoke",
+  hazmat: "Chemical / Gas",
+  security: "Security Threat",
+  medical: "Medical Emergency",
 };
 
 export const seedIncidents: Incident[] = [

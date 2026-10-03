@@ -153,13 +153,14 @@ No credentials or key values were printed or committed during verification.
 - [x] No service-role/secret variable is present in the frontend `.env.local`.
 - [ ] Configure the strong password policy.
 - [x] Three separately named Auth users created in Supabase on 2026-10-03.
-- [x] Local Auth enforcement remains disabled until memberships are assigned.
+- [x] Auth enforcement is enabled locally.
 - [x] Private Git-ignored provisioning script prepared with the three Auth UUIDs and no passwords.
-- [ ] Apply the provisioning script and verify its three-row result.
-- [ ] Mark all three profiles active through the provisioning script.
-- [ ] Create one `company_admin`, one `worker`, and one `control_room` membership.
-- [ ] Test each login and sign-out while Auth remains optional.
-- [ ] Set `NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=true` locally and in Vercel.
+- [x] Provisioning script returned the expected three-row result in Supabase.
+- [x] All three profiles are active.
+- [x] One `company_admin`, one `worker`, and one `control_room` membership created.
+- [ ] Test each login, role route, refresh, and sign-out.
+- [x] Set `NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=true` locally.
+- [ ] Set `NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=true` in Vercel.
 - [ ] Rotate the initially shared demo passwords before demonstration or recording.
 
 Follow `SUPABASE_AUTH_SETUP.md` in order. Do not enable Auth enforcement before the first working membership exists.
@@ -246,7 +247,7 @@ The application role lock is a navigation safeguard; RLS and audited RPCs are th
 
 ### 2026-10-03
 
-- Automated lifecycle tests: 5 passed.
+- Automated lifecycle and approved-label tests: 6 passed.
 - ESLint: passed after Auth/operations integration.
 - TypeScript production compilation: passed.
 - Vite production build: passed.
@@ -257,12 +258,14 @@ The application role lock is a navigation safeguard; RLS and audited RPCs are th
 - Supabase public schema checks: passed.
 - Supabase Auth health: passed.
 - Browser/manual visual verification: not performed in this change set.
+- Auth profile/membership provisioning: three expected active rows confirmed by owner screenshot.
+- Full role-by-role manual test plan: `PILOT_TESTING_GUIDE.md`.
 
 ## Next recommended execution sequence
 
 1. Apply security migration 003 and disable project-wide signup.
-2. Create and verify the three individual control-room accounts.
-3. Enable Auth locally and test login, role lock, mobile navigation, and sign-out.
+2. Test all three persona logins, role lock, mobile navigation, refresh, and sign-out.
+3. Verify migration 003 policies and privileges using `PILOT_TESTING_GUIDE.md`.
 4. Connect worker incident RPC creation and shared incident reads.
 5. Connect realtime company/responder/control-room updates.
 6. Add private attachment storage and real notification receipts.
