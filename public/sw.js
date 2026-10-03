@@ -1,4 +1,4 @@
-const CACHE = "zioguard-pilot-v1";
+const CACHE = "zioguard-pilot-v2";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {

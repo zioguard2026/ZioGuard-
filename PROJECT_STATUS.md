@@ -99,6 +99,7 @@ These management actions currently operate as persistent or in-session pilot int
 ### PWA and accessibility
 
 - [x] Installable manifest and service worker.
+- [x] PWA cache version is bumped for the authenticated deployment, and Vercel revalidates both the application entry point and service worker.
 - [x] Mobile and desktop navigation.
 - [x] Minimum touch-target intent.
 - [x] Keyboard-accessible dialogs and Escape handling.
@@ -145,6 +146,7 @@ No credentials or key values were printed or committed during verification.
 - [x] Worker, responder, company-admin, control-room, and system-admin role mapping.
 - [x] Demo remains available while Auth is optional.
 - [x] Auth can be enabled with `NEXT_PUBLIC_SUPABASE_AUTH_REQUIRED=true`.
+- [x] Production builds fail closed to Auth when the Auth-required variable is omitted; unrestricted demo mode now requires an explicit `false` value.
 - [x] Detailed setup guide: `SUPABASE_AUTH_SETUP.md`.
 - [x] Desktop and mobile account identity/sign-out controls for every authenticated role.
 - [x] Photos and voice notes excluded from browser persistence.
