@@ -77,6 +77,22 @@ pnpm install
 pnpm dev
 ```
 
+The equivalent npm commands are:
+
+```bash
+npm install
+npm run dev
+```
+
+To serve the completed production build locally:
+
+```bash
+npm run build
+npm start
+```
+
+`npm start` serves the existing `dist` build at `http://localhost:4173`. Use `npm run dev` during development so changes update immediately.
+
 ## Verification
 
 ```bash

@@ -262,6 +262,8 @@ pnpm lint
 pnpm build
 ```
 
+For npm users, run `npm run dev` during development. After `npm run build`, use `npm start` to preview the generated production build at `http://localhost:4173`.
+
 Current evidence on 2026-10-03:
 
 - lifecycle and approved-label tests: 6 passed;
